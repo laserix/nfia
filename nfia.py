@@ -84,7 +84,7 @@ class SifFile:
         # Read superpixeling data
         line = sif.readline().split()
         #self.shape = (self.ccd_size[1]/int(line[5]), self.ccd_size[0]/int(line[6]))
-        print line
+        #print line
         # Skip next 2 lines (1 with old version of sif)
         for i in range(2):
             sif.readline()
@@ -114,8 +114,8 @@ class fileName():
 	def _getsize(self,char1,char2):
 		"""string size of the parameter value"""
 		pos1 = self._getpos(char1)
-		pos2 = self._getpos(char2)-len(char2)+1
-		return pos2-pos1
+		pos2 = self._getpos(char2)
+		return pos2-pos1-len(char1)
 		
 	def getvalue(self,param,unit):
 		"""return parameter value between parameter and unit"""
@@ -154,9 +154,10 @@ class backgroundCorrection():
 	def backgroundInterp(self):
 		"""4 points linear interpolation of background based on corner image count"""
 		size_x,size_y = self.image.shape
+		#print self.image.shape
 		background = np.ones((size_x,size_y))
-		marge = 50
-		corner = np.array([self.image[marge,marge],self.image[size_y-marge,marge],self.image[size_x-marge,marge],self.image[size_x-marge,size_y-marge]])
+		marge = 10
+		corner = np.array([self.image[marge,marge],self.image[size_x-marge,marge],self.image[marge,size_y-marge],self.image[size_x-marge,size_y-marge]])
 		#for i in range(size_x):
 		#	for j in range(size_y):
 				#background[i,j] = (corner[1]-corner[0])*i/size_x+(corner[3]-corner[2])*j/size_y
@@ -186,25 +187,17 @@ class backgroundCorrection():
 # function crop avec ginput
 
 def cropImage(imagedata):
-	size_x,size_y = imagedata.shape
-	axis([0, size_x, 0, size_y])
-	imshow(imagedata, interpolation='nearest')
-	print "Please click to draw you square selection clockwise"
-	pts = ginput(5) # it will wait for three clicks
+	figcrop = plt.figure(0)
+	imshow(imagedata, interpolation='nearest',origin = 'lower')
+	print "Please click to center of spot"
+	ptc = ginput(1) # it will wait for three clicks
 	print "The point selected are"
-	print pts # ginput returns points as tuples
-	x=map(lambda x: x[0],pts) # map applies the function passed as 
-	y=map(lambda x: x[1],pts) # first parameter to each element of pts
-	plot(x,y,'-o')
-	axis([0, size_x, 0, size_y])
-	show()
-	pta = np.array(pts,dtype=int16)
-	length_x = int((pta[0,1]-pta[0,0])/2)
-	#print length_x
-	length_y = int((pta[2,1]-pta[3,1])/2)
-	#print length_y
-	ptc = pta[4,:]
-	#print ptc
+	ptc = np.array((ptc[0]),dtype=int16)
+	print ptc # ginput returns points as tuples
+	plt.show()
+	plt.close(0)
+	length_x = 75
+	length_y = 75
 	return ptc, length_x, length_y
 	
 def roiImage(imagedata,ptc,length_x,length_y):
@@ -243,13 +236,7 @@ def fitgaussian(data):
     p, success = optimize.leastsq(errorfunction, params)
     return p
  		
-# function sum_count, methode threshold
-
-
-# function max pos
-
-#def maxImage(image):
-			
+		
 #****************************************************************************************
 if __name__=="__main__":
 	testname = '20130123_2p0J_t10ps_dt05ns__19.sif'
@@ -260,7 +247,9 @@ if __name__=="__main__":
 	# file number
 	nbf = len(fileNames)
 	print 'Number of files :', nbf
-	
+	# data initialisation array
+	dataline = np.empty((nbf,11))
+	dataline_average = np.zeros((nbf,11))	
 	#parameter1
 	param1 = '_t'
 	#unit 1
@@ -271,75 +260,131 @@ if __name__=="__main__":
 	unit2 = 'ns_'
 	
 	# extract date
-	print fileNames[0]
-	fname0 = fileName(fileNames)
-	date = fname0.getdate()
-	
+	date = fileName(fileNames[0]).getdate()
+	print date
 	# datafile name where you record measurement
-	datafileMeas = 'data'+date+'.txt'
-	
-	headers = date+'\t'+'shotnumber'+'\t'+param1+' '+unit1+'\t'+param2+' '+unit2+'\tS_int[cc]\tS_max[cc]\tx_max[pix]\tymax[pix]\tsig_x[pix]\tsig_y[pix]'
-	f = open(fm,'ab')
+	datafileMeas = 'data'+str(date)+'.txt'
+	datafileMeas2 = 'data'+str(date)+'_average'+'.txt'
+	# define headers
+	headers = 'date\t'+'shotnumber'+'\t'+param1+' '+unit1+'\t'+param2+' '+unit2+'\tS_int_th[cc]\tS_int_gauss\tS_max[cc]\tx_max[pix]\tymax[pix]\tsig_x[pix]\tsig_y[pix]'
+	# write headers
+	f = open(datafileMeas,'ab')
+	f.write(headers)
+	f.close()
+	f = open(datafileMeas2,'ab')
 	f.write(headers)
 	f.close()
 	
 	# define the region of interest on the first image
-	imageTest = SifFile(fileNames[0]).data[300:700,300:700]
+	imageTest = SifFile(fileNames[10]).data[700:,200:600]
 	roic,roi_x,roi_y = cropImage(imageTest)
 	roiData = roiImage(imageTest,roic,roi_x,roi_y)
 	print 'Selected ROI:', roiData.shape
-	figure = plt.figure(2)
-	imshow(roiData,interpolation='nearest')
+	figure = plt.figure(1)
+	plt.title('ROI Image')
+	plt.imshow(roiData,interpolation='nearest', origin = 'lower')
+	plt.xlabel('x')
+	plt.ylabel('y')
+	plt.colorbar()
 	plt.show()
+	plt.close(1)
 	
+	# initilisation for average measurement
+	previous_value1 = 0
+	previous_value2 = 0
+	average_count1 = 0
+	average_count2 = 0
+	ind = 0
 	
-	for  l in range(5):
+	# main loop on files 
+	for  l in range(nbf):
 		print 'fileNumber :', l
 		#open SIF image with pre-crop
-		imageData = SifFile(fileNames[l]).data[300:700,300:700]
-		
-		#data background correction  
+		imageData = SifFile(fileNames[l]).data[700:,200:600]
+		#data background correction 
 		imageDataC = backgroundCorrection(imageData,True).applyBgCorrection()
-		#imageBackground = backgroundCorrection(imageData,True).getBgcImage()
+		#background count
+		imageBackground = backgroundCorrection(imageData,True).getBgcImage()
+		print 'Background mean total count :', np.mean(imageBackground) 
 		
-		roiData = roiImage(fileNames[l],roic,roi_x,roi_y)
+		#definition of the ROI image 
+		roiData = roiImage(imageDataC,roic,roi_x,roi_y)
 		
-		value1 = fileNames[l].getvalue(param1,unit1)
-		value1 = fileNames[l].getvalue(param2,unit2)
-		shotNumber = fileNames[l].getshotnumber(extension)
+		value1 = fileName(fileNames[l]).getvalue(param1,unit1)
+		value2 = fileName(fileNames[l]).getvalue(param2,unit2)
+		shotNumber = fileName(fileNames[l]).getshotnumber(extension)
 		
 		# 2D gaussian fit on the roiData
 		params = fitgaussian(roiData)
 		s_max = np.max(np.max(roiData))
 		print 'max :', s_max
-		
-		print 'params:', params[0]
-		fit = gaussian(*params)
-		levels = np.array((0.0214,0.1359,0.5))*s_max
-		print 'levels:',levels
+		#fit = gaussian(*params)
 		
 		# Integrated Count Calculation by mask defined by gaussian fit
 		mask1 = np.zeros(roiData.shape)
+		# times sigma of the gaussian for integrations
+		fact = 1.5
 		for i in range(roiData.shape[0]):
 			for j in range(roiData.shape[1]):
-				test = (i-x)**2/(2*width_x)**2+(j-y)**2/(2*width_y)**2
+				test = (i-params[1])**2/(fact*params[3])**2+(j-params[2])**2/(fact*params[4])**2
 				if test < 1:
 					mask1[i,j] = 1
 				else:
 					mask1[i,j] = 0
 		count1 = np.sum(roiData*mask1)
-		print 'Count by Gauss Int :', count1	
+		print 'Count by Gauss Int :', int(count1)
 		
 		# Integrated Count Calculation by mask defined by threshold
-		mask2 = roiData > levels[1]
+		levels = np.array((0.0214,0.1359,0.15))*s_max
+		# change index or value in levels to change threshold
+		mask2 = roiData > levels[2]
 		sint = mask2*roiData
 		count2 = np.sum(sint)
-		print 'Count by thresholding:',count2
+		print 'Count by thresholding:',int(count2)
 		
-		# record measurement
-		dataline = np.array((date,shotNumber,value1,value2,count2,params[1:]))
+		# Plot each slice as an independent subplot
+		data = [roiData*mask2,roiData*mask1]
 		
-		fid = open(fm,'ab')
-		np.savetxt(fid,dataline,fmt='%s',delimiter='\t')
-		print 'measurement of file ',fileNames[l],' is saved'
-		fid.close()
+		fig, axes = plt.subplots(nrows=1, ncols=2)
+		for dat, ax in zip(data, axes.flat):
+  	 		# The vmin and vmax arguments specify the color limits
+   			im = ax.imshow(dat,interpolation = 'nearest',origin = 'lower')
+   			ax.set_aspect('auto')
+   			# Make an axis for the colorbar on the right side
+		cax = fig.add_axes([0.92, 0.3, 0.02, 0.5])
+		fig.colorbar(im, cax=cax)
+		plt.show()
+		# store measurement in an array
+		measurement = [int(date),shotNumber,value1,value2,count2,count1,s_max,params[1],params[2],params[3],params[4]]
+		#print measurement
+		dataline[l,:] = np.array(measurement)
+		
+		if (value1 == previous_value1) and (value2 == previous_value2):
+			average_count1 = (average_count1 + count1)/2.
+			average_count2 = (average_count2 + count2)/2.
+		else : 
+			measurement_average = [int(date),shotNumber,value1,value2,average_count2,average_count1,s_max,params[1],params[2],params[3],params[4]]
+			dataline_average[ind,:] = np.array(measurement_average)
+			average_count1 = 0
+			average_count2 = 0
+			ind = ind+1
+		
+		previous_value1 = value1
+		previous_value2 = value2
+		
+	# save the measurement array	
+	fid = open(datafileMeas,'ab')
+	np.savetxt(fid,dataline,fmt='%s',delimiter='\t')
+	print 'measurement of file is saved'
+	fid.close()
+	fid = open(datafileMeas2,'ab')
+	np.savetxt(fid,dataline_average,fmt='%s',delimiter='\t')
+	print 'average measurement of file is saved'
+	fid.close()
+	
+	figure = plt.figure(3)
+	plt.scatter(dataline_average[:,3],dataline_average[:,5])
+	plt.xlabel(param2)
+	plt.show()
+	plt.close('all')
+	
