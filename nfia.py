@@ -238,6 +238,24 @@ def fitgaussian(data):
                                  data)
     p, success = optimize.leastsq(errorfunction, params)
     return p
+
+def averageColumn(col1,col2,matrix):
+	elt = np.zeros((matrix.shape[0],4))        
+	elt[0,0] =  matrix[0,col1]
+	elt[0,1] = matrix[np.where(matrix[:,col1]==matrix[0,col1])].shape[0]
+	elt[0,2] = matrix[np.where(matrix[:,col1]==matrix[0,col1]),col2].sum()
+	elt[0,3] =  matrix[np.where(matrix[:,col1]==matrix[0,col1]),col2].sum()/matrix[np.where(matrix[:,0]==m1[0,0])].shape[0]
+	j = 0
+	for i in range(1,matrix.shape[0]):
+		if (matrix[i,col1] != matrix[i-1,col1]) and ((matrix[i,col1] != elt[:,0]).all()):
+			j = j+1
+			elt[j,0]=matrix[i,col1]
+			elt[j,1]=matrix[np.where(matrix[:,col1]==matrix[i,col1])].shape[0]
+			elt[j,2]=matrix[np.where(matrix[:,col1]==matrix[i,col1]),col2].sum()
+			elt[j,3]=matrix[np.where(matrix[:,col1]==matrix[i,col1]),col2].sum()/matrix[np.where(matrix[:,col1]==matrix[i,col1])].shape[0]
+	elements = elt[np.where(elt>0)]
+	results = elements.reshape(-1,4)
+	return results
  		
 		
 #****************************************************************************************
@@ -293,12 +311,6 @@ if __name__=="__main__":
 	plt.show()
 	plt.close(1)
 	
-	# initilisation for average measurement
-	previous_value1 = 0
-	previous_value2 = 0
-	average_count1 = 0
-	average_count2 = 0
-	ind = 0
 	
 	fig2 = plt.figure(2)
 	ion()
@@ -364,19 +376,9 @@ if __name__=="__main__":
 		measurement = [int(date),shotNumber,value1,value2,count2,count1,s_max,params[1],params[2],params[3],params[4]]
 		#print measurement
 		dataline[l,:] = np.array(measurement)
-		
-		if (value1 == previous_value1) and (value2 == previous_value2):
-			average_count1 = (average_count1 + count1)/2.
-			average_count2 = (average_count2 + count2)/2.
-		else : 
-			measurement_average = [int(date),shotNumber,value1,value2,average_count2,average_count1,s_max,params[1],params[2],params[3],params[4]]
-			dataline_average[ind,:] = np.array(measurement_average)
-			average_count1 = 0
-			average_count2 = 0
-			ind = ind+1
-		
-		previous_value1 = value1
-		previous_value2 = value2
+		# average on same values
+		results_average = averageColumn(3,4,dataline)
+
 		
 	# save the measurement array	
 	fid = open(datafileMeas,'ab')
@@ -384,7 +386,7 @@ if __name__=="__main__":
 	print 'measurement of file is saved'
 	fid.close()
 	fid = open(datafileMeas2,'ab')
-	np.savetxt(fid,dataline_average,fmt='%s',delimiter='\t')
+	np.savetxt(fid,results_average,fmt='%s',delimiter='\t')
 	print 'average measurement of file is saved'
 	fid.close()
 	
