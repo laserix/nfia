@@ -244,7 +244,7 @@ def averageColumn(col1,col2,matrix):
 	elt[0,0] =  matrix[0,col1]
 	elt[0,1] = matrix[np.where(matrix[:,col1]==matrix[0,col1])].shape[0]
 	elt[0,2] = matrix[np.where(matrix[:,col1]==matrix[0,col1]),col2].sum()
-	elt[0,3] =  matrix[np.where(matrix[:,col1]==matrix[0,col1]),col2].sum()/matrix[np.where(matrix[:,0]==m1[0,0])].shape[0]
+	elt[0,3] =  matrix[np.where(matrix[:,col1]==matrix[0,col1]),col2].sum()/matrix[np.where(matrix[:,0]==matrix[0,0])].shape[0]
 	j = 0
 	for i in range(1,matrix.shape[0]):
 		if (matrix[i,col1] != matrix[i-1,col1]) and ((matrix[i,col1] != elt[:,0]).all()):
@@ -377,9 +377,9 @@ if __name__=="__main__":
 		#print measurement
 		dataline[l,:] = np.array(measurement)
 		# average on same values
-		results_average = averageColumn(3,4,dataline)
-
 		
+
+	results_average = averageColumn(3,4,dataline)		
 	# save the measurement array	
 	fid = open(datafileMeas,'ab')
 	np.savetxt(fid,dataline,fmt='%s',delimiter='\t')
