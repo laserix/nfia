@@ -2,7 +2,6 @@
 
 import sys
 import os
-import time
 import numpy as np
 import glob
 import math
@@ -300,8 +299,6 @@ if __name__=="__main__":
 	average_count2 = 0
 	ind = 0
 	
-	fig2 = plt.figure(2)
-	ion()
 	# main loop on files 
 	for  l in range(nbf):
 		print 'fileNumber :', l
@@ -351,15 +348,15 @@ if __name__=="__main__":
 		# Plot each slice as an independent subplot
 		data = [roiData*mask2,roiData*mask1]
 		
-		plt.subplot(121)
-   		plt.imshow(data[0],interpolation = 'nearest',origin = 'lower')
-   		plt.subplot(122)
-   		plt.imshow(data[0],interpolation = 'nearest',origin = 'lower')
-		#plt.imshow(roiData*mask2,cmap=plt.cm.hsv)
-		fig2.canvas.draw()
-		#plt.colorbar()
-		time.sleep(1e-6)
-		
+		fig, axes = plt.subplots(nrows=1, ncols=2)
+		for dat, ax in zip(data, axes.flat):
+  	 		# The vmin and vmax arguments specify the color limits
+   			im = ax.imshow(dat,interpolation = 'nearest',origin = 'lower')
+   			ax.set_aspect('auto')
+   			# Make an axis for the colorbar on the right side
+		cax = fig.add_axes([0.92, 0.3, 0.02, 0.5])
+		fig.colorbar(im, cax=cax)
+		plt.show()
 		# store measurement in an array
 		measurement = [int(date),shotNumber,value1,value2,count2,count1,s_max,params[1],params[2],params[3],params[4]]
 		#print measurement
@@ -388,9 +385,9 @@ if __name__=="__main__":
 	print 'average measurement of file is saved'
 	fid.close()
 	
-	#figure = plt.figure(3)
-	#plt.scatter(dataline_average[:,3],dataline_average[:,5])
-	#plt.xlabel(param2)
-	#plt.show()
-	#plt.close('all')
+	figure = plt.figure(3)
+	plt.scatter(dataline_average[:,3],dataline_average[:,5])
+	plt.xlabel(param2)
+	plt.show()
+	plt.close('all')
 	
