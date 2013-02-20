@@ -78,6 +78,7 @@ class SifFile:
 
         # Get CCD dimension in pixels
         shape = sif.readline().split()
+        #print 'ccd size',shape
         self.ccd_size = (int(shape[0]), int(shape[1]))
 
         # Ignore next 24 (17 with old version of sif) lines prior to superpixeling information
@@ -86,8 +87,9 @@ class SifFile:
 
         # Read superpixeling data
         line = sif.readline().split()
+        #print line # uncomment if you want to check cropping and binning infos. 
         #self.shape = (self.ccd_size[1]/int(line[5]), self.ccd_size[0]/int(line[6]))
-        #print line
+        self.shape = (int(line[3])-int(line[1]))/int(line[5]),(int(line[2])-int(line[4]))/int(line[6])
         # Skip next 2 lines (1 with old version of sif)
         for i in range(2):
             sif.readline()
@@ -98,12 +100,12 @@ class SifFile:
         if line[3] < line[2]:
             self.shape = (len(self.data)/int(line[3]), int(line[3]))
         else:
-            # I'm not sure if this is correct...
-            # Needs more testing.
-            self.shape = (int(line[2]), len(self.data)/int(line[2]))
+        	self.shape = (int(line[3])-int(line[1])+1)/int(line[5]),(int(line[2])-int(line[4])+1)/int(line[6])
         self.data = np.reshape(self.data, self.shape)
-        sif.close()
-        
+        # I'm not sure if this is correct...
+        # Needs more testing with sequence 20 02 2013
+        # old command : self.shape = (int(line[2]), len(self.data)/int(line[2]))
+        sif.close()  
     
         
 class fileName():
@@ -157,7 +159,7 @@ class backgroundCorrection():
 	def backgroundInterp(self):
 		"""4 points linear interpolation of background based on corner image count"""
 		size_x,size_y = self.image.shape
-		#print self.image.shape
+		print self.image.shape
 		background = np.ones((size_x,size_y))
 		marge = 10
 		corner = np.array([self.image[marge,marge],self.image[size_x-marge,marge],self.image[marge,size_y-marge],self.image[size_x-marge,size_y-marge]])
@@ -276,10 +278,14 @@ if __name__=="__main__":
 	param1 = '_t'
 	#unit 1
 	unit1 = 'ps_'
-	#parameter1
-	param2 = '_dt'
+	#parameter2
+	param2 = '_dtls'
 	#unit 2
 	unit2 = 'ns_'
+	#parameter3
+	param3 = '_dtss'
+	#unit 3
+	unit3 = '__'
 	
 	# extract date
 	date = fileName(fileNames[0]).getdate()
@@ -298,7 +304,8 @@ if __name__=="__main__":
 	f.close()
 	
 	# define the region of interest on the first image
-	imageTest = SifFile(fileNames[10]).data[700:,200:600]
+	# in case of crop directly when acquisition is done is not necessary
+	imageTest = SifFile(fileNames[10]).data
 	roic,roi_x,roi_y = cropImage(imageTest)
 	roiData = roiImage(imageTest,roic,roi_x,roi_y)
 	print 'Selected ROI:', roiData.shape
@@ -318,7 +325,8 @@ if __name__=="__main__":
 	for  l in range(nbf):
 		print 'fileNumber :', l
 		#open SIF image with pre-crop
-		imageData = SifFile(fileNames[l]).data[700:,200:600]
+		#imageData = SifFile(fileNames[l]).data[700:,200:600] depend on XRL position
+		imageData = SifFile(fileNames[l]).data
 		#data background correction 
 		imageDataC = backgroundCorrection(imageData,True).applyBgCorrection()
 		#background count
